@@ -1,0 +1,44 @@
+name: Deploy web frontend to Firebase Hosting
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "apps/web/**"
+      - ".github/workflows/deploy-web.yml"
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - id: auth
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.WIF_PROVIDER }}
+          service_account: ${{ secrets.WIF_SERVICE_ACCOUNT }}
+
+      - name: Generate runtime config.js
+        run: |
+          cat > apps/web/public/config.js <<EOF
+          window.APP_CONFIG = {
+            apiBaseUrl: "${{ vars.CLOUD_RUN_SERVICE_URL }}",
+            firebase: {
+              apiKey: "${{ vars.FIREBASE_API_KEY }}",
+              authDomain: "${{ vars.FIREBASE_AUTH_DOMAIN }}",
+              projectId: "${{ vars.GCP_PROJECT_ID }}",
+              appId: "${{ vars.FIREBASE_APP_ID }}"
+            }
+          };
+          EOF
+
+      - name: Deploy to Firebase Hosting
+        working-directory: apps/web
+        run: npx firebase-tools@13 deploy --only hosting --project ${{ vars.GCP_PROJECT_ID }} --non-interactive
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS: ${{ steps.auth.outputs.credentials_file_path }}

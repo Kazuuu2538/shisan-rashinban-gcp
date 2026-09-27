@@ -1,0 +1,149 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>資産羅針盤</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@500;700&family=Zen+Kaku+Gothic+New:wght@400;500;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="shell" id="login-screen">
+    <div class="login-card">
+      <svg width="40" height="40" viewBox="0 0 30 30" fill="none" aria-hidden="true">
+        <circle cx="15" cy="15" r="13" stroke="var(--accent)" stroke-width="2"/>
+        <path d="M20 10 L14 16 L10 20 L16 14 Z" fill="var(--gold)"/>
+        <circle cx="15" cy="15" r="1.6" fill="var(--accent)"/>
+      </svg>
+      <h1>資産羅針盤</h1>
+      <p class="tag">目標に対する進み具合を継続監視するプライベートバンカーAIエージェント</p>
+      <button class="btn primary" id="btn-google-signin">Googleでサインイン</button>
+      <p id="login-error" class="login-error" hidden></p>
+    </div>
+  </div>
+
+  <div class="shell" id="app-root" hidden>
+    <header class="topbar">
+      <div class="brandrow">
+        <svg width="30" height="30" viewBox="0 0 30 30" fill="none" aria-hidden="true">
+          <circle cx="15" cy="15" r="13" stroke="var(--accent)" stroke-width="2"/>
+          <path d="M20 10 L14 16 L10 20 L16 14 Z" fill="var(--gold)"/>
+          <circle cx="15" cy="15" r="1.6" fill="var(--accent)"/>
+        </svg>
+        <div class="brand-text">
+          <h1>資産羅針盤</h1>
+          <div class="tag" id="user-email">—</div>
+        </div>
+        <button class="btn ghost small" id="btn-signout" style="margin-left:auto;">サインアウト</button>
+      </div>
+      <nav class="tabs" id="tabs">
+        <button data-view="dashboard" class="active">ダッシュボード</button>
+        <button data-view="goals">目標</button>
+        <button data-view="data">データ入力</button>
+        <button data-view="alerts">アラート</button>
+        <button data-view="advisor">AIアドバイザー</button>
+      </nav>
+    </header>
+
+    <main>
+      <div id="storage-banner"></div>
+
+      <section id="view-dashboard">
+        <div class="section-head">
+          <h2>進捗サマリー</h2>
+          <p id="asof-label">—</p>
+        </div>
+        <div id="dashboard-goals" class="grid"></div>
+      </section>
+
+      <section id="view-goals" hidden>
+        <div class="section-head"><h2>目標を追加</h2><p>資産形成の目標、またはポートフォリオの配分目標を登録します</p></div>
+        <div class="seg" id="goal-type-seg">
+          <button data-type="savings" class="active" type="button">資産形成</button>
+          <button data-type="portfolio" type="button">ポートフォリオ配分</button>
+        </div>
+        <form class="panel" id="form-goal-savings">
+          <div class="field-row">
+            <label class="field">タイトル
+              <input type="text" name="title" placeholder="例：65歳までに老後資金3000万円" required>
+            </label>
+            <label class="field">許容乖離率
+              <input type="number" name="thresholdPct" value="10" min="1" step="1" required>
+              <span class="hint">計画より何%下振れたら「要見直し」にするか</span>
+            </label>
+          </div>
+          <div class="field-row">
+            <label class="field">開始時期<input type="month" name="startPeriod" required></label>
+            <label class="field">開始時点の資産額（万円）<input type="number" name="startAmount" min="0" step="1" required></label>
+            <label class="field">目標時期<input type="month" name="targetPeriod" required></label>
+            <label class="field">目標額（万円）<input type="number" name="targetAmount" min="0" step="1" required></label>
+          </div>
+          <div><button class="btn primary" type="submit">資産形成の目標を追加</button></div>
+        </form>
+        <form class="panel" id="form-goal-portfolio" hidden>
+          <div class="field-row">
+            <label class="field">タイトル
+              <input type="text" name="title" placeholder="例：コア資産の配分バランス" required>
+            </label>
+            <label class="field">許容乖離（ポイント）
+              <input type="number" name="thresholdPt" value="10" min="1" step="1" required>
+              <span class="hint">目標配分から何pt乖離したら「要見直し」にするか</span>
+            </label>
+          </div>
+          <div class="field-row" id="alloc-target-fields"></div>
+          <div class="allocsum" id="alloc-target-sum">合計 0%（100%になるよう入力してください）</div>
+          <div><button class="btn primary" type="submit">ポートフォリオ目標を追加</button></div>
+        </form>
+
+        <div class="section-head" style="margin-top:8px;"><h2>登録済みの目標</h2></div>
+        <div id="goals-list" class="grid"></div>
+      </section>
+
+      <section id="view-data" hidden>
+        <div class="section-head"><h2>月次データを入力</h2><p>資産内訳を入力すると、合計資産額は自動計算されます</p></div>
+        <form class="panel" id="form-snapshot">
+          <div class="field-row">
+            <label class="field">対象年月<input type="month" name="period" required></label>
+            <label class="field">月間収入（万円・任意）<input type="number" name="income" min="0" step="1"></label>
+            <label class="field">月間支出（万円・任意）<input type="number" name="expenses" min="0" step="1"></label>
+          </div>
+          <div class="field-row" id="alloc-snapshot-fields"></div>
+          <div class="allocsum" id="alloc-snapshot-sum">合計資産額：0 万円</div>
+          <label class="field">メモ（任意）<textarea name="note" rows="2"></textarea></label>
+          <div><button class="btn primary" type="submit">この月のデータを保存</button></div>
+        </form>
+
+        <div class="section-head" style="margin-top:8px;"><h2>入力済みデータ</h2></div>
+        <div class="table-wrap" id="snapshot-table"></div>
+      </section>
+
+      <section id="view-alerts" hidden>
+        <div class="section-head">
+          <h2>現在のアラート</h2>
+          <p>閾値を超えている目標のみ表示されます。データを更新すると自動的に再評価されます。</p>
+        </div>
+        <div id="alerts-list" class="grid"></div>
+      </section>
+
+      <section id="view-advisor" hidden>
+        <div class="section-head">
+          <h2>AIアドバイザー</h2>
+          <p>登録済みの目標・データ・アラートを踏まえて、Vertex AI（Gemini）が状況を整理します</p>
+        </div>
+        <form class="panel" id="form-advice">
+          <label class="field">質問（任意）
+            <textarea name="question" rows="2" placeholder="例：今のペースで老後資金は間に合いそうですか？"></textarea>
+          </label>
+          <div><button class="btn primary" type="submit">アドバイスを聞く</button></div>
+        </form>
+        <div id="advice-output" class="panel" style="white-space:pre-wrap;" hidden></div>
+      </section>
+    </main>
+  </div>
+
+<script src="config.js"></script>
+<script type="module" src="app.js"></script>
+</body>
+</html>
